@@ -1,0 +1,9 @@
+services:
+  sentiment-api:
+    image: postgres:16-alpine
+    container_name: sentiment-api
+    environment:
+      POSTGRES_DB: sentiment-api-db
+      POSTGRES_PASSWORD: sentiment-api-pass
+    ports:
+      - "5432:5432"
