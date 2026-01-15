@@ -24,7 +24,7 @@ public class SentimentService {
     @Autowired
     private SentimentPredictionRepository predictionRepository;
 
-    public SentimentResponse analyze(String text) {
+    public SentimentResponse analyze(String text, String language) {
         TextValidationService validationService = new TextValidationService();
         validationService.validate(text);
 
@@ -32,24 +32,30 @@ public class SentimentService {
         newComment.setText(text);
         Comment savedComment = commentRepository.save(newComment);
 
-        RestTemplate restTemplate = new RestTemplate();
-        SentimentRequest request = new SentimentRequest(text);
+        try {
 
-        SentimentResponse response = restTemplate.postForObject(pythonServiceUrl, request, SentimentResponse.class);
+            RestTemplate restTemplate = new RestTemplate();
+            SentimentRequest request = new SentimentRequest(text, language);
+            SentimentResponse response = restTemplate.postForObject(pythonServiceUrl, request, SentimentResponse.class);
 
-        if (response != null) {
-            SentimentPrediction prediction = new SentimentPrediction();
-            prediction.setComment(savedComment);
-            prediction.setSentiment(response.previsao());
-            prediction.setScore(response.probabilidade());
-            prediction.setModelVersion("1.0");
+            if (response != null) {
+                SentimentPrediction prediction = new SentimentPrediction();
+                prediction.setComment(savedComment);
+                prediction.setSentiment(response.previsao());
+                prediction.setScore(response.probabilidade());
+                prediction.setLanguage(response.idioma());
+                prediction.setModelVersion("1.1");
 
-            predictionRepository.save(prediction);
+                predictionRepository.save(prediction);
 
-            return response;
+                return response;
+            } else {
+                throw new RuntimeException("Resposta invalida do serviço Python");
+            }
+
+        } catch (Exception ex) {
+            throw new RuntimeException("Erro ao chamar o serviço Python: " + ex.getMessage());
         }
-
-        throw new RuntimeException("Erro no serviço de previsão de sentimento");
     }
 
 }

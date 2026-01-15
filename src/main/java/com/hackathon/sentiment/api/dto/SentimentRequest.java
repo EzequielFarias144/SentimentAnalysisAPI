@@ -8,5 +8,8 @@ public record SentimentRequest(
         @NotBlank(message = "O campo 'text' é obrigatório")
         @Size(min = 10, message = "O texto deve ter no mínimo 10 caracteres")
         @JsonProperty("text")
-        String text
+        String text,
+        @NotBlank(message = "O campo 'language' é obrigatório")
+        @JsonProperty("language")
+        String language
 ) {}
