@@ -7,6 +7,7 @@ import java.util.List;
 public record SentimentResponse (
         String previsao,
         Double probabilidade,
+        String idioma,
         @JsonProperty("palavras_chave")
         List<String> keywords
 ){}

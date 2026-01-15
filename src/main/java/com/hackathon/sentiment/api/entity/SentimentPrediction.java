@@ -28,6 +28,8 @@ public class SentimentPrediction {
     @Column(name = "model_version")
     private String modelVersion;
 
+    private String language;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 }

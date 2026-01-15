@@ -71,5 +71,5 @@ def predict_sentiment(input: TextInput):
         "previsao": previsao.capitalize(),
         "probabilidade": round(probabilidade, 2),
         "idioma": lang,
-        "top_features": top_features
+        "palavras_chave": top_features
     }

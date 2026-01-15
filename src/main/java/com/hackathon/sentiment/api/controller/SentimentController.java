@@ -3,15 +3,13 @@ package com.hackathon.sentiment.api.controller;
 import com.hackathon.sentiment.api.dto.SentimentRequest;
 import com.hackathon.sentiment.api.dto.SentimentResponse;
 import com.hackathon.sentiment.api.service.SentimentService;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+import org.springframework.web.util.UriComponentsBuilder;
 
-/**
- * Controller responsável por receber as requisições de análise de sentimento.
- * A anotação @CrossOrigin com "*" permite que o Frontend em qualquer porta
- * consiga ler a resposta da IA.
- */
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/sentiment")
@@ -20,19 +18,16 @@ public class SentimentController {
     @Autowired
     private SentimentService sentimentService;
 
-    /**
-     * Endpoint POST que recebe o texto e devolve a predição.
-     * Retorna ResponseEntity.ok (200) para total compatibilidade com o Dashboard React.
-     */
     @PostMapping
-    public ResponseEntity<SentimentResponse> analyzeSentiment(@RequestBody SentimentRequest request) {
-        // Extrai o texto do DTO recebido
+    @Transactional
+    public ResponseEntity<SentimentResponse> analyzeSentiment(@Valid @RequestBody SentimentRequest request, UriComponentsBuilder uriBuilder) {
         var textValue = request.text();
+        var languageValue = request.language();
 
-        // Chama o serviço que integra com o modelo de IA e salva no banco Postgres
-        SentimentResponse result = sentimentService.analyze(textValue);
+        SentimentResponse result = sentimentService.analyze(textValue, languageValue);
 
-        // Retorna o resultado com Status 200 (OK) para o React
-        return ResponseEntity.ok(result);
+        var uri = uriBuilder.path("/sentiment").build().toUri();
+
+        return ResponseEntity.created(uri).body(result);
     }
 }
