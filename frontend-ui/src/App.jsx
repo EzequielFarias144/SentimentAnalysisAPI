@@ -9,7 +9,8 @@ import {
   Activity,
   MessageSquare,
   Zap,
-  Clock
+  Clock,
+  RefreshCw
 } from 'lucide-react';
 
 const App = () => {
@@ -22,7 +23,7 @@ const App = () => {
   const [filter, setFilter] = useState({
     language: 'all',
     sentiment: 'all',
-    recent: 5
+    recent: 10
   });
 
   const [apiData, setApiData] = useState({
@@ -32,6 +33,10 @@ const App = () => {
     percentualNegativo: 0,
     tempoMedioRespostaMs: 0
   });
+
+  useEffect(() => {
+    fetchHistory();
+  }, [filter]);
 
   /* ===================== STATS ===================== */
   const fetchStats = async () => {
@@ -56,18 +61,21 @@ const App = () => {
     if (!comment.trim()) return;
     setLoading(true);
     try {
-      // Ajustado para bater exatamente no @RequestMapping("/sentiment") do seu SentimentController
       const response = await fetch('http://localhost:8081/sentiment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: comment, language })
       });
 
-      if (res.ok) {
-        setResult(await res.json());
+      if (response.ok) {
+        const responseBody = await response.json();
+        setResult(responseBody);
         setComment('');
         fetchStats();
         fetchHistory();
+      } else {
+        const errorData = await response.text();
+        console.error('Erro na requisição (Status ' + response.status + '):', errorData);
       }
     } catch (error) {
       console.error("Erro na análise");
@@ -76,26 +84,39 @@ const App = () => {
     }
   };
 
+    /* ===================== HISTÓRICO ===================== */
+  const fetchHistory = async () => {
+    try {
+      const params = new URLSearchParams();
+
+      if (filter.language !== 'all') {
+        params.append('language', filter.language);
+      }
+
+      if (filter.sentiment !== 'all') {
+        params.append('sentiment', filter.sentiment);
+      }
+
+      params.append('limit', filter.recent);
+      console.log("Buscando histórico com params:", params.toString());
+
+      const response = await fetch(`http://localhost:8081/comments?${params.toString()}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        if(data && data.comments) {
+          setHistory(data.comments);
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao buscar histórico", error);
+    }
+  };
   /* ===================== PIE ===================== */
   const pieData = [
     { name: 'Positivo', value: apiData.percentualPositivo },
     { name: 'Negativo', value: apiData.percentualNegativo }
   ];
-
-  // Helper para definir cores baseadas no sentimento recebido
-  const getSentimentColor = (sentiment) => {
-    const s = sentiment?.toUpperCase();
-    if (s === 'POSITIVO') return 'text-green-600';
-    if (s === 'NEGATIVO') return 'text-red-600';
-    return 'text-indigo-600';
-  };
-
-  const getSentimentBg = (sentiment) => {
-    const s = sentiment?.toUpperCase();
-    if (s === 'POSITIVO') return 'border-green-200 bg-green-50';
-    if (s === 'NEGATIVO') return 'border-red-200 bg-red-50';
-    return 'border-indigo-200 bg-slate-50';
-  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -227,7 +248,7 @@ const App = () => {
           <div className="lg:col-span-2 bg-white rounded-2xl shadow p-6">
             <h3 className="font-bold text-lg mb-4">Histórico de Comentários</h3>
 
-            <div className="flex gap-2 mb-4 flex-wrap">
+            <div className="flex gap-2 mb-4 flex-wrap items-center">
               <select
                 value={filter.language}
                 onChange={e => setFilter({ ...filter, language: e.target.value })}
@@ -245,8 +266,8 @@ const App = () => {
                 className="p-2 border rounded text-sm"
               >
                 <option value="all">Todos sentimentos</option>
-                <option value="POSITIVO">Positivo</option>
-                <option value="NEGATIVO">Negativo</option>
+                <option value="Positivo">Positivo</option>
+                <option value="Negativo">Negativo</option>
               </select>
 
               <select
@@ -258,33 +279,55 @@ const App = () => {
                 <option value={10}>Últimos 10</option>
                 <option value={20}>Últimos 20</option>
               </select>
+
+              {/* === BOTÃO DE BUSCAR === */}
+              <button
+                  onClick={fetchHistory}
+                  className="p-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors flex items-center gap-2 text-sm font-semibold ml-auto sm:ml-0 cursor-pointer"
+                  title="Atualizar lista manual"
+              >
+                <RefreshCw size={18} />
+                <span className="hidden sm:inline">Buscar</span>
+              </button>
             </div>
 
             <div className="bg-slate-50 p-3 rounded border h-64 overflow-y-auto">
               {history.length === 0 ? (
-                <p className="text-center text-sm text-slate-500">
-                  Nenhum comentário encontrado
-                </p>
+                  <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                    <MessageSquare className="w-8 h-8 mb-2 opacity-50"/>
+                    <p className="text-sm">Nenhum comentário encontrado</p>
+                  </div>
               ) : (
-                <ul className="divide-y">
-                  {history.map((c, i) => (
-                   <li key={i} className="py-2 flex justify-between">
-                      <div>
-                        <p className="text-sm">{c.text}</p>
-                        <p className="text-xs text-slate-400">
-                          {c.language.toUpperCase()} • {new Date(c.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                      <span className={`text-xs font-bold px-2 py-1 rounded ${
-                        c.sentiment === 'POSITIVO'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-re d-100 text-red-700'
-                      }`}>
-                        {c.sentiment}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                  <ul className="divide-y divide-slate-200">
+                    {history.map((c, i) => (
+                        <li key={i} className="py-3 flex justify-between items-center group hover:bg-white transition-colors px-2 rounded">
+                          <div className="pr-4 flex-1">
+                            <p className="text-sm text-slate-700 font-medium truncate">
+                              {c.text || "(Sem texto)"}
+                            </p>
+                            <p className="text-xs text-slate-400 mt-1 font-semibold flex items-center gap-2">
+                              <span className="uppercase tracking-wide border px-1 rounded bg-slate-100">
+                                {c.language || "NA"}
+                              </span>
+
+                              {c.score !== undefined && c.score !== null && (
+                                  <span className="font-normal text-slate-500">
+                                  Confiança: <span className="font-bold text-slate-700">{(c.score * 100).toFixed(0)}%</span>
+                                </span>
+                              )}
+                            </p>
+                          </div>
+
+                          <span className={`text-xs font-bold px-3 py-1 rounded-full border whitespace-nowrap ml-2 ${
+                              (c.sentiment && c.sentiment.toUpperCase() === 'POSITIVO')
+                                  ? 'bg-green-100 text-green-700 border-green-200'
+                                  : 'bg-red-100 text-red-700 border-red-200'
+                          }`}>
+                            {c.sentiment || 'N/A'}
+                          </span>
+                        </li>
+                    ))}
+                  </ul>
               )}
             </div>
 
