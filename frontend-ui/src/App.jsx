@@ -19,6 +19,7 @@ const App = () => {
   const [comment, setComment] = useState('');
   const [language, setLanguage] = useState('pt');
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Analisando...');
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
 
@@ -64,13 +65,25 @@ const App = () => {
     // Acorda o Python ML (serviço de análise)
     fetch(`${API_URL}/health/warmup`).catch(() => {});
     
-    const interval = setInterval(fetchStats, 5000);
-    return () => clearInterval(interval);
+    // Warmup periódico a cada 10 minutos para manter serviços acordados
+    const warmupInterval = setInterval(() => {
+      fetch(`${API_URL}/health/warmup`).catch(() => {});
+    }, 10 * 60 * 1000); // 10 minutos
+    
+    const statsInterval = setInterval(fetchStats, 5000);
+    
+    return () => {
+      clearInterval(statsInterval);
+      clearInterval(warmupInterval);
+    };
   }, []);
 
   const handleAnalyze = async () => {
     if (!comment.trim()) return;
+    
     setLoading(true);
+    setLoadingMessage('Analisando...');
+    
     try {
       const response = await fetch(`${API_URL}/sentiment`, {
         method: 'POST',
@@ -84,14 +97,47 @@ const App = () => {
         setComment('');
         fetchStats();
         fetchHistory();
+      } else if (response.status === 500) {
+        // Erro 500 pode ser serviço dormindo - tenta acordar e retry
+        console.log('Serviço pode estar dormindo, acordando...');
+        setLoadingMessage('Acordando serviços... aguarde 30s');
+        
+        // Acorda os serviços
+        await fetch(`${API_URL}/health/warmup`).catch(() => {});
+        
+        // Aguarda 30 segundos para serviços acordarem
+        await new Promise(resolve => setTimeout(resolve, 30000));
+        
+        // Retry da análise
+        setLoadingMessage('Tentando novamente...');
+        const retryResponse = await fetch(`${API_URL}/sentiment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: comment, language })
+        });
+        
+        if (retryResponse.ok) {
+          const responseBody = await retryResponse.json();
+          setResult(responseBody);
+          setComment('');
+          fetchStats();
+          fetchHistory();
+        } else {
+          const errorData = await retryResponse.text();
+          console.error('Erro na requisição após retry (Status ' + retryResponse.status + '):', errorData);
+          alert('Erro na análise. Tente novamente.');
+        }
       } else {
         const errorData = await response.text();
         console.error('Erro na requisição (Status ' + response.status + '):', errorData);
+        alert('Erro na análise. Verifique o texto e tente novamente.');
       }
     } catch (error) {
-      console.error("Erro na análise");
+      console.error("Erro na análise:", error);
+      alert('Erro de conexão. Verifique sua internet.');
     } finally {
       setLoading(false);
+      setLoadingMessage('Analisando...');
     }
   };
 
@@ -249,9 +295,9 @@ const App = () => {
             <button
               onClick={handleAnalyze}
               disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Analisando...' : 'Analisar Texto'}
+              {loading ? loadingMessage : 'Analisar Texto'}
             </button>
             {result && (
                 <div className={`mt-6 p-4 rounded-xl border animate-in fade-in slide-in-from-top-2 duration-300 ${

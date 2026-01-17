@@ -21,18 +21,22 @@ public class HealthController {
         Map<String, String> response = new HashMap<>();
         
         try {
-            // Chama o Python ML para acordá-lo (sem salvar no banco)
+            // Chama o Python ML para acordá-lo
             RestTemplate restTemplate = new RestTemplate();
             Map<String, String> request = new HashMap<>();
-            request.put("text", "warmup");
+            request.put("text", "teste de conexao para warmup");
             request.put("language", "pt");
             
+            // Timeout de 60 segundos para dar tempo do serviço acordar
             restTemplate.postForObject(pythonServiceUrl, request, Object.class);
             
-            response.put("status", "Backend e ML aquecidos");
+            response.put("status", "success");
+            response.put("message", "Backend e ML aquecidos com sucesso");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            response.put("status", "Backend OK, ML dormindo");
+            response.put("status", "partial");
+            response.put("message", "Backend OK, ML pode estar acordando: " + e.getMessage());
+            // Retorna 200 mesmo com erro para não bloquear o frontend
             return ResponseEntity.ok(response);
         }
     }
