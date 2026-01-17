@@ -99,17 +99,25 @@ const App = () => {
         fetchHistory();
       } else if (response.status === 500) {
         // Erro 500 pode ser serviço dormindo - tenta acordar e retry
-        console.log('Serviço pode estar dormindo, acordando...');
-        setLoadingMessage('Acordando serviços... aguarde 30s');
+        console.log('Serviço dormindo detectado, iniciando warmup...');
+        setLoadingMessage('⏳ Acordando serviços (0/60s)...');
         
-        // Acorda os serviços
-        await fetch(`${API_URL}/health/warmup`).catch(() => {});
+        // Acorda os serviços múltiplas vezes
+        fetch(`${API_URL}/health/warmup`).catch(() => {});
         
-        // Aguarda 30 segundos para serviços acordarem
-        await new Promise(resolve => setTimeout(resolve, 30000));
+        // Aguarda 60 segundos com contagem regressiva
+        for (let i = 0; i <= 60; i += 10) {
+          await new Promise(resolve => setTimeout(resolve, 10000));
+          setLoadingMessage(`⏳ Acordando serviços (${i + 10}/60s)...`);
+          
+          // Tenta warmup novamente a cada 20s
+          if (i === 20 || i === 40) {
+            fetch(`${API_URL}/health/warmup`).catch(() => {});
+          }
+        }
         
         // Retry da análise
-        setLoadingMessage('Tentando novamente...');
+        setLoadingMessage('✅ Serviços acordados, analisando...');
         const retryResponse = await fetch(`${API_URL}/sentiment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
