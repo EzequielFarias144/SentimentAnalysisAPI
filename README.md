@@ -46,7 +46,7 @@ Backend (Spring Boot - API REST)
 Data Science Service (FastAPI + ML)
         |
         v
-Banco de Dados (H2 / PostgreSQL)
+Banco de Dados (PostgreSQL)
 ````
 
 ### Componentes
