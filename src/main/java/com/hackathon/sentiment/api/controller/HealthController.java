@@ -23,6 +23,9 @@ public class HealthController {
     public ResponseEntity<Map<String, String>> warmup() {
         Map<String, String> response = new HashMap<>();
         
+        System.out.println("=== WARMUP INICIADO ===");
+        System.out.println("URL do Python ML: " + pythonServiceUrl);
+        
         // Configurar RestTemplate com timeout de 90 segundos
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(90000); // 90 segundos
@@ -35,11 +38,16 @@ public class HealthController {
         
         for (int attempt = 1; attempt <= 3; attempt++) {
             try {
+                System.out.println("Tentativa " + attempt + " de 3...");
+                
                 Map<String, String> request = new HashMap<>();
                 request.put("text", "warmup do sistema - tentativa " + attempt);
                 request.put("language", "pt");
                 
                 Object result = restTemplate.postForObject(pythonServiceUrl, request, Object.class);
+                
+                System.out.println("✅ Sucesso na tentativa " + attempt);
+                System.out.println("Resposta do ML: " + result);
                 
                 success = true;
                 response.put("status", "success");
@@ -49,9 +57,13 @@ public class HealthController {
                 
             } catch (Exception e) {
                 lastError = e.getMessage();
+                System.err.println("❌ Erro na tentativa " + attempt + ": " + lastError);
+                e.printStackTrace();
+                
                 // Se não é a última tentativa, aguarda 5 segundos
                 if (attempt < 3) {
                     try {
+                        System.out.println("Aguardando 5 segundos antes da próxima tentativa...");
                         Thread.sleep(5000);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
@@ -61,9 +73,12 @@ public class HealthController {
         }
         
         if (!success) {
+            System.err.println("=== WARMUP FALHOU APÓS 3 TENTATIVAS ===");
             response.put("status", "warming");
             response.put("message", "ML ainda está acordando. Última tentativa falhou: " + lastError);
             response.put("attempts", "3");
+        } else {
+            System.out.println("=== WARMUP CONCLUÍDO COM SUCESSO ===");
         }
         
         // Sempre retorna 200 para não bloquear o frontend

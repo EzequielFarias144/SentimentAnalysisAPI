@@ -97,52 +97,14 @@ const App = () => {
         setComment('');
         fetchStats();
         fetchHistory();
-      } else if (response.status === 500) {
-        // Erro 500 pode ser serviço dormindo - tenta acordar e retry
-        console.log('Serviço dormindo detectado, iniciando warmup...');
-        setLoadingMessage('⏳ Acordando serviços (0/60s)...');
-        
-        // Acorda os serviços múltiplas vezes
-        fetch(`${API_URL}/health/warmup`).catch(() => {});
-        
-        // Aguarda 60 segundos com contagem regressiva
-        for (let i = 0; i <= 60; i += 10) {
-          await new Promise(resolve => setTimeout(resolve, 10000));
-          setLoadingMessage(`⏳ Acordando serviços (${i + 10}/60s)...`);
-          
-          // Tenta warmup novamente a cada 20s
-          if (i === 20 || i === 40) {
-            fetch(`${API_URL}/health/warmup`).catch(() => {});
-          }
-        }
-        
-        // Retry da análise
-        setLoadingMessage('✅ Serviços acordados, analisando...');
-        const retryResponse = await fetch(`${API_URL}/sentiment`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: comment, language })
-        });
-        
-        if (retryResponse.ok) {
-          const responseBody = await retryResponse.json();
-          setResult(responseBody);
-          setComment('');
-          fetchStats();
-          fetchHistory();
-        } else {
-          const errorData = await retryResponse.text();
-          console.error('Erro na requisição após retry (Status ' + retryResponse.status + '):', errorData);
-          alert('Erro na análise. Tente novamente.');
-        }
       } else {
         const errorData = await response.text();
-        console.error('Erro na requisição (Status ' + response.status + '):', errorData);
-        alert('Erro na análise. Verifique o texto e tente novamente.');
+        console.error('Erro na análise (Status ' + response.status + '):', errorData);
+        alert('Erro: ' + errorData);
       }
     } catch (error) {
-      console.error("Erro na análise:", error);
-      alert('Erro de conexão. Verifique sua internet.');
+      console.error("Erro de conexão:", error);
+      alert('Erro de conexão. Backend pode estar dormindo. Aguarde 1 minuto e tente novamente.');
     } finally {
       setLoading(false);
       setLoadingMessage('Analisando...');
