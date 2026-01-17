@@ -47,9 +47,12 @@ const App = () => {
       if (response.ok) {
         const data = await response.json();
         setApiData(data);
+      } else {
+        setApiData(prev => ({ ...prev, statusApi: 'Offline' }));
       }
     } catch (error) {
       console.error("API Offline");
+      setApiData(prev => ({ ...prev, statusApi: 'Offline' }));
     }
   };
 
