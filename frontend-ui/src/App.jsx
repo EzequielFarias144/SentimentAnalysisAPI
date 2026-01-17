@@ -58,17 +58,25 @@ const App = () => {
   };
 
   useEffect(() => {
-    // Aquecimento inicial - acorda o backend E o Python ML
+    // Aquecimento inicial - acorda o backend E o Python ML DIRETAMENTE
     fetchStats();
     fetchHistory();
     
-    // Acorda o Python ML (serviço de análise)
-    fetch(`${API_URL}/health/warmup`).catch(() => {});
+    // Acorda o Python ML DIRETO (navegador passa pelo Cloudflare)
+    fetch('https://sentimentanalysisapi-data.onrender.com/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'warmup', language: 'pt' })
+    }).catch(() => {});
     
-    // Warmup periódico a cada 10 minutos para manter serviços acordados
+    // Warmup periódico a cada 10 minutos
     const warmupInterval = setInterval(() => {
-      fetch(`${API_URL}/health/warmup`).catch(() => {});
-    }, 10 * 60 * 1000); // 10 minutos
+      fetch('https://sentimentanalysisapi-data.onrender.com/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: 'warmup', language: 'pt' })
+      }).catch(() => {});
+    }, 10 * 60 * 1000);
     
     const statsInterval = setInterval(fetchStats, 5000);
     
