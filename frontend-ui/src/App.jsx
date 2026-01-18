@@ -78,7 +78,7 @@ const App = () => {
       }).catch(() => {});
     }, 10 * 60 * 1000);
     
-    const statsInterval = setInterval(fetchStats, 5000);
+    const statsInterval = setInterval(fetchStats, 30000); // 30s conforme Douglas
     
     return () => {
       clearInterval(statsInterval);
