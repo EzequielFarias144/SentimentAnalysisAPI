@@ -58,24 +58,39 @@ const App = () => {
   };
 
   useEffect(() => {
-    // Aquecimento inicial - acorda o backend E o Python ML DIRETAMENTE
-    fetchStats();
-    fetchHistory();
+    // Warmup EXPLÍCITO do Backend
+    console.log('🔥 Warmup do Backend Java...');
+    fetch(`${API_URL}/stats`)
+      .then(() => console.log('✅ Backend acordado!'))
+      .catch(err => console.log('⚠️ Backend ainda dormindo:', err.message));
     
-    // Acorda o Python ML DIRETO (navegador passa pelo Cloudflare)
+    // Warmup EXPLÍCITO do Python ML (navegador passa pelo Cloudflare)
+    console.log('🔥 Warmup do Python ML...');
     fetch('https://sentimentanalysisapi-data.onrender.com/predict', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: 'warmup', language: 'pt' })
-    }).catch(() => {});
+    })
+      .then(() => console.log('✅ Python ML acordado!'))
+      .catch(err => console.log('⚠️ Python ML ainda dormindo:', err.message));
     
-    // Warmup periódico a cada 10 minutos
+    // Busca dados após warmup
+    setTimeout(() => {
+      fetchStats();
+      fetchHistory();
+    }, 3000); // Aguarda 3s para os serviços acordarem
+    
+    // Warmup periódico a cada 10 minutos (AMBOS os serviços)
     const warmupInterval = setInterval(() => {
+      // Acorda Python ML
       fetch('https://sentimentanalysisapi-data.onrender.com/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: 'warmup', language: 'pt' })
       }).catch(() => {});
+      
+      // Acorda Backend
+      fetch(`${API_URL}/stats`).catch(() => {});
     }, 10 * 60 * 1000);
     
     const statsInterval = setInterval(fetchStats, 30000); // 30s conforme Douglas
